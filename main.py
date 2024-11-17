@@ -1,90 +1,37 @@
 import os
-import numpy as np
-import pandas as pd
-import librosa
-import librosa.display
-import matplotlib.pyplot as plt
-import seaborn as sns
+from data_preparation import load_spectrogram_data, prepare_train_test_split
+from model import create_cnn_model
+from utils import plot_training_history
+from tensorflow.keras.utils import to_categorical
 
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.svm import SVC
+# Set paths
+images_path = os.path.join(os.getcwd(), 'Data', 'images_original')
 
-# Set the correct dataset path
-dataset_path = os.path.join(os.getcwd(), 'Data', 'genres_original')
-
-# Initialize lists to hold features and labels
-features_list = []
-labels_list = []
-
-# Define a function to extract features from a file
-def extract_features(file_name):
-    try:
-        # Load the audio file (30 seconds)
-        audio, sample_rate = librosa.load(file_name, duration=30)
-        
-        # Extract MFCCs
-        mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=40)
-        mfccs_mean = np.mean(mfccs.T, axis=0)
-        return mfccs_mean
-    except Exception as e:
-        print(f"Error encountered while parsing file: {file_name}")
-        return None
-
-# List of genres
+# Genres
 genres = 'blues classical country disco hiphop jazz metal pop reggae rock'.split()
 
-# Loop through each genre
-for genre in genres:
-    print(f"Processing {genre} files...")
-    genre_path = os.path.join(dataset_path, genre)
-    for filename in os.listdir(genre_path):
-        if filename.endswith('.wav'):
-            file_path = os.path.join(genre_path, filename)
-            # Extract features
-            data = extract_features(file_path)
-            if data is not None:
-                features_list.append(data)
-                labels_list.append(genre)
+# Load and prepare data
+X, y, label_encoder = load_spectrogram_data(images_path, genres)
+X_train, X_test, y_train, y_test = prepare_train_test_split(X, y)
 
-# Create a DataFrame with extracted features and corresponding labels
-features_df = pd.DataFrame(features_list)
-features_df['label'] = labels_list
+# Convert labels to categorical (one-hot encoding)
+y_train_cat = to_categorical(y_train, num_classes=len(genres))
+y_test_cat = to_categorical(y_test, num_classes=len(genres))
 
-# Encode the labels
-label_encoder = LabelEncoder()
-features_df['label_encoded'] = label_encoder.fit_transform(features_df['label'])
+# Create model
+input_shape = (128, 128, 3)
+model = create_cnn_model(input_shape, num_classes=len(genres))
 
-# Separate features and labels
-X = features_df.iloc[:, :-2].values  # Features
-y = features_df['label_encoded'].values  # Encoded labels
+# Train the model
+history = model.fit(
+    X_train, y_train_cat,
+    epochs=30,
+    batch_size=32,
+    validation_data=(X_test, y_test_cat)
+)
 
-# Standardize the features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# Save the model
+model.save('music_genre_cnn_model.h5')
 
-# Split the dataset into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-
-# Create and train the SVM classifier
-svm = SVC(kernel='linear', C=1.0, random_state=42)
-svm.fit(X_train, y_train)
-
-# Predict the test set and evaluate the model
-y_pred = svm.predict(X_test)
-
-# Classification report
-report = classification_report(y_test, y_pred, target_names=label_encoder.classes_)
-print(report)
-
-# Plot the confusion matrix
-cm = confusion_matrix(y_test, y_pred)
-plt.figure(figsize=(10, 8))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=label_encoder.classes_,
-            yticklabels=label_encoder.classes_)
-plt.title('Confusion Matrix')
-plt.xlabel('Predicted Genre')
-plt.ylabel('True Genre')
-plt.show()
+# Plot training history
+plot_training_history(history)
