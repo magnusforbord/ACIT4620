@@ -31,7 +31,7 @@ history = model.fit(
 )
 
 # Save the model
-model.save('music_genre_cnn_model.h5')
+model.save('music_genre_cnn_model.keras')
 
 # Plot training history
 plot_training_history(history)
