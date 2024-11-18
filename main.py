@@ -17,7 +17,7 @@ genres = 'blues classical country disco hiphop jazz metal pop reggae rock'.split
 X, y, label_encoder = load_spectrogram_data(images_path, genres)
 X_train, X_test, y_train, y_test = prepare_train_test_split(X, y)
 
-# Convert labels to categorical (one-hot encoding)
+# Convert labels to categorical
 y_train_cat = to_categorical(y_train, num_classes=len(genres)).astype(np.float32)
 y_test_cat = to_categorical(y_test, num_classes=len(genres)).astype(np.float32)
 
