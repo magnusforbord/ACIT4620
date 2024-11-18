@@ -1,8 +1,8 @@
 import os
 import numpy as np
-import cv2
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from PIL import Image
 
 def load_spectrogram_data(images_path, genres, img_size=(128, 128)):
     image_data = []
@@ -13,14 +13,13 @@ def load_spectrogram_data(images_path, genres, img_size=(128, 128)):
         for img_file in os.listdir(genre_path):
             if img_file.endswith('.png'):
                 img_path = os.path.join(genre_path, img_file)
-                img = cv2.imread(img_path)
-                img = cv2.resize(img, img_size)
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                image_data.append(img)
+                img = Image.open(img_path).convert('RGB')  # Convert to RGB format
+                img = img.resize(img_size)
+                image_data.append(np.array(img))
                 labels.append(genre)
 
     # Convert data to numpy arrays and normalize
-    X = np.array(image_data) / 255.0
+    X = np.array(image_data, dtype=np.float32) / 255.0
     y = np.array(labels)
 
     # Encode labels
